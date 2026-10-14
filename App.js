@@ -4,7 +4,6 @@ import {
   Text,
   Image,
   FlatList,
-  SectionList,
   ScrollView,
   TextInput,
   Pressable,
@@ -13,33 +12,10 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { products, categories } from './data/products';
-import { formatPrice } from './utils/format';
-
-function toSections(list) {
-  const byCategory = {};
-  list.forEach((product) => {
-    if (!byCategory[product.category]) {
-      byCategory[product.category] = [];
-    }
-    byCategory[product.category].push(product);
-  });
-  return Object.keys(byCategory).map((title) => ({ title, data: byCategory[title] }));
-}
-
-function ProductRow({ product }) {
-  return (
-    <View style={styles.row}>
-      <Image source={{ uri: product.imageUrl }} style={styles.thumb} />
-      <View style={styles.info}>
-        <Text style={styles.name}>{product.name}</Text>
-        <Text style={styles.category}>{product.category}</Text>
-        <Text style={styles.price}>
-          Price: <Text style={styles.priceValue}>{formatPrice(product.price)}</Text>
-        </Text>
-      </View>
-    </View>
-  );
-}
+import ProductCard from './components/ProductCard';
+import FlexPlayground from './components/FlexPlayground';
+import { padToFullRows } from './utils/grid';
+import { colors, spacing, radius } from './theme';
 
 function EmptyList() {
   return <Text style={styles.empty}>No products match your search.</Text>;
@@ -49,10 +25,13 @@ function Separator() {
   return <View style={styles.separator} />;
 }
 
+const TABS = ['Catalog', 'Flex Playground'];
+const NUM_COLUMNS = 2;
+
 export default function App() {
+  const [tab, setTab] = useState('Catalog');
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [grouped, setGrouped] = useState(false);
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleProducts = products.filter((product) => {
@@ -60,16 +39,7 @@ export default function App() {
     const matchesQuery = product.name.toLowerCase().includes(normalizedQuery);
     return matchesCategory && matchesQuery;
   });
-
-  const listProps = {
-    keyExtractor: (item) => item.id,
-    renderItem: ({ item }) => <ProductRow product={item} />,
-    ItemSeparatorComponent: Separator,
-    ListEmptyComponent: EmptyList,
-    contentContainerStyle: styles.listContent,
-    keyboardShouldPersistTaps: 'handled',
-    keyboardDismissMode: 'on-drag',
-  };
+  const gridData = padToFullRows(visibleProducts, NUM_COLUMNS);
 
   return (
     <SafeAreaProvider>
@@ -85,60 +55,76 @@ export default function App() {
             </View>
           </View>
 
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search products"
-            placeholderTextColor="#999999"
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            style={styles.searchInput}
-          />
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipScroll}
-            contentContainerStyle={styles.chips}
-          >
-            {categories.map((category) => {
-              const selected = category === selectedCategory;
-              return (
-                <Pressable
-                  key={category}
-                  onPress={() => setSelectedCategory(category)}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {category}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <View style={styles.resultsBar}>
-            <Text style={styles.resultsText}>{visibleProducts.length} products</Text>
-            <Pressable onPress={() => setGrouped((value) => !value)}>
-              <Text style={styles.toggleText}>
-                {grouped ? 'Show flat list' : 'Group by category'}
-              </Text>
-            </Pressable>
+          <View style={styles.tabs}>
+            {TABS.map((name) => (
+              <Pressable
+                key={name}
+                onPress={() => setTab(name)}
+                style={[styles.tab, tab === name && styles.tabSelected]}
+              >
+                <Text style={[styles.tabText, tab === name && styles.tabTextSelected]}>{name}</Text>
+              </Pressable>
+            ))}
           </View>
+
+          {tab === 'Catalog' && (
+            <>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search products"
+                placeholderTextColor="#999999"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+                style={styles.searchInput}
+              />
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+                contentContainerStyle={styles.chips}
+              >
+                {categories.map((category) => {
+                  const selected = category === selectedCategory;
+                  return (
+                    <Pressable
+                      key={category}
+                      onPress={() => setSelectedCategory(category)}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                        {category}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.resultsText}>{visibleProducts.length} products</Text>
+            </>
+          )}
         </View>
 
-        {grouped ? (
-          <SectionList
-            {...listProps}
-            sections={toSections(visibleProducts)}
-            renderSectionHeader={({ section }) => (
-              <Text style={styles.sectionHeader}>{section.title}</Text>
-            )}
+        {tab === 'Catalog' ? (
+          <FlatList
+            data={gridData}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) =>
+              item.spacer ? <View style={styles.spacer} /> : <ProductCard product={item} />
+            }
+            numColumns={NUM_COLUMNS}
+            columnWrapperStyle={styles.columnWrapper}
+            ItemSeparatorComponent={Separator}
+            ListEmptyComponent={EmptyList}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           />
         ) : (
-          <FlatList {...listProps} data={visibleProducts} />
+          <FlexPlayground />
         )}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -148,39 +134,61 @@ export default function App() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   top: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   logo: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
+    color: colors.text,
   },
   subtitle: {
-    color: '#666666',
+    color: colors.muted,
+  },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  tab: {
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.border,
+  },
+  tabSelected: {
+    backgroundColor: colors.text,
+  },
+  tabText: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+  tabTextSelected: {
+    color: colors.surface,
   },
   searchInput: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#dddddd',
-    paddingHorizontal: 12,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 16,
   },
@@ -188,83 +196,43 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   chips: {
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   chip: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 16,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#1e6fd9',
-    backgroundColor: '#ffffff',
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   chipSelected: {
-    backgroundColor: '#1e6fd9',
+    backgroundColor: colors.primary,
   },
   chipText: {
-    color: '#1e6fd9',
+    color: colors.primary,
     fontWeight: '600',
   },
   chipTextSelected: {
-    color: '#ffffff',
-  },
-  resultsBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 8,
+    color: colors.surface,
   },
   resultsText: {
-    color: '#666666',
+    color: colors.muted,
+    paddingBottom: spacing.sm,
   },
-  toggleText: {
-    color: '#1e6fd9',
-    fontWeight: '600',
+  columnWrapper: {
+    gap: spacing.md,
   },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: '700',
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  row: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-  },
-  thumb: {
-    width: 96,
-    height: 96,
-    borderRadius: 8,
-  },
-  info: {
+  spacer: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  category: {
-    color: '#888888',
-    marginTop: 2,
-  },
-  price: {
-    marginTop: 8,
-  },
-  priceValue: {
-    fontWeight: '700',
-    color: '#0a7d3b',
   },
   separator: {
-    height: 12,
+    height: spacing.md,
   },
   empty: {
     textAlign: 'center',
-    color: '#888888',
+    color: colors.muted,
     marginTop: 32,
   },
 });
