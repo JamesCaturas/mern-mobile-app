@@ -3,12 +3,16 @@ import { Card, Text, Button, useTheme } from 'react-native-paper';
 import { spacing } from '../theme';
 import { formatPrice } from '../utils/format';
 
-export default function ProductCard({ product, onAdd }) {
+export default function ProductCard({ product, onAdd, onPress }) {
   const theme = useTheme();
   const outOfStock = !product.inStock;
 
   return (
-    <Card style={[styles.card, outOfStock && styles.outOfStock]}>
+    <Card
+      style={[styles.card, outOfStock && styles.outOfStock]}
+      onPress={() => onPress(product)}
+      accessibilityLabel={`Open ${product.name}`}
+    >
       <Card.Cover source={{ uri: product.imageUrl }} style={styles.cover} />
       <Card.Content style={styles.content}>
         <Text variant="titleMedium" numberOfLines={1}>
