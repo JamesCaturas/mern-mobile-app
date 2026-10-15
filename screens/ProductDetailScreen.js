@@ -2,6 +2,8 @@ import { useState, useLayoutEffect, useEffect } from 'react';
 import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { products } from '../data/products';
+import { useCart } from '../context/CartContext';
+import useScreenLog from '../hooks/useScreenLog';
 import { Text, Button, Chip, IconButton, Snackbar, useTheme } from 'react-native-paper';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
 import { formatPrice } from '../utils/format';
@@ -11,6 +13,8 @@ const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 10;
 
 export default function ProductDetailScreen({ route, navigation }) {
+  useScreenLog();
+  const { addItem } = useCart();
   const { productId } = route.params;
   const index = products.findIndex((item) => item.id === productId);
   const product = products[index];
@@ -47,6 +51,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const outOfStock = !product.inStock;
 
   const handleAddToCart = () => {
+    addItem(product, quantity);
     setMessage(`${quantity} x ${product.name} added to cart`);
   };
 

@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DrawerActions } from '@react-navigation/native';
 import { Appbar, Searchbar, Chip, Snackbar } from 'react-native-paper';
 import { products, categories } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import DeviceInfo from '../components/DeviceInfo';
+import { useCart } from '../context/CartContext';
 import { padToFullRows } from '../utils/grid';
 import useBreakpoint from '../hooks/useBreakpoint';
+import useScreenLog from '../hooks/useScreenLog';
 import { colors, spacing } from '../theme';
 
 function EmptyList() {
@@ -18,6 +21,8 @@ function Separator() {
 }
 
 export default function ProductListScreen({ navigation }) {
+  useScreenLog();
+  const { addItem } = useCart();
   const { numColumns } = useBreakpoint();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -33,17 +38,19 @@ export default function ProductListScreen({ navigation }) {
   });
   const gridData = padToFullRows(visibleProducts, numColumns);
 
-  const openProduct = (product) => {
-    navigation.navigate('ProductDetail', { productId: product.id });
+  const toggleMenu = () => {
+    navigation.dispatch(DrawerActions.toggleDrawer());
   };
 
   const handleAdd = (product) => {
+    addItem(product);
     setMessage(`${product.name} added to cart`);
   };
 
   return (
     <View style={styles.screen}>
       <Appbar.Header>
+        <Appbar.Action icon="menu" accessibilityLabel="Open menu" onPress={toggleMenu} />
         <Appbar.Content title="Shopfront" />
         <Appbar.Action
           icon="information-outline"
@@ -94,7 +101,7 @@ export default function ProductListScreen({ navigation }) {
               item.spacer ? (
                 <View style={styles.spacer} />
               ) : (
-                <ProductCard product={item} onAdd={handleAdd} onPress={openProduct} />
+                <ProductCard product={item} onAdd={handleAdd} />
               )
             }
             numColumns={numColumns}
