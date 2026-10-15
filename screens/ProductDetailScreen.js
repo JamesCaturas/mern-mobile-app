@@ -9,7 +9,8 @@ import { colors, spacing, radius } from '../theme';
 const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 10;
 
-export default function ProductDetailScreen({ product, onBack }) {
+export default function ProductDetailScreen({ route, navigation }) {
+  const { product } = route.params;
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useBreakpoint();
@@ -26,7 +27,7 @@ export default function ProductDetailScreen({ product, onBack }) {
   return (
     <View style={styles.screen}>
       <Appbar.Header>
-        <Appbar.BackAction onPress={onBack} accessibilityLabel="Back to products" />
+       <Appbar.BackAction onPress={navigation.goBack} />
         <Appbar.Content title={product.name} />
       </Appbar.Header>
 
