@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Appbar, Searchbar, Chip, Snackbar } from 'react-native-paper';
@@ -32,8 +32,9 @@ export default function ProductListScreen({ navigation }) {
     return matchesCategory && matchesQuery;
   });
   const gridData = padToFullRows(visibleProducts, numColumns);
+
   const openProduct = (product) => {
-    navigation.navigate('ProductDetail', { product });
+    navigation.navigate('ProductDetail', { productId: product.id });
   };
 
   const handleAdd = (product) => {

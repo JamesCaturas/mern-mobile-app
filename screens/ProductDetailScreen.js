@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect, useEffect } from 'react';
 import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Appbar, Text, Chip, IconButton, Button, Snackbar, useTheme } from 'react-native-paper';
+import { products } from '../data/products';
+import { Text, Button, Chip, IconButton, Snackbar, useTheme } from 'react-native-paper';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
 import { formatPrice } from '../utils/format';
 import { colors, spacing, radius } from '../theme';
@@ -10,13 +11,38 @@ const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 10;
 
 export default function ProductDetailScreen({ route, navigation }) {
-  const { product } = route.params;
+  const { productId } = route.params;
+  const index = products.findIndex((item) => item.id === productId);
+  const product = products[index];
+  const nextProduct = products[(index + 1) % products.length];
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useBreakpoint();
   const [quantity, setQuantity] = useState(MIN_QUANTITY);
   const [message, setMessage] = useState('');
-
+  const [favorite, setFavorite] = useState(false);
+  useEffect(() => {
+    console.log('stack:', navigation.getState().routes.map((item) => item.name).join(' > '), '| product', productId);
+  }, [productId]);
+    useLayoutEffect(() => {
+    navigation.setOptions({
+      title: product ? product.name : 'Product',
+      headerRight: () => (
+        <IconButton
+          icon={favorite ? 'heart' : 'heart-outline'}
+          accessibilityLabel={favorite ? 'Remove from favorites' : 'Add to favorites'}
+          onPress={() => setFavorite((value) => !value)}
+        />
+      ),
+    });
+  }, [navigation, product, favorite]);
+  if (!product) {
+    return (
+      <View style={styles.notFound}>
+        <Text variant="titleMedium">Product not found</Text>
+      </View>
+    );
+  }
   const isWide = width >= BREAKPOINTS.tablet;
   const outOfStock = !product.inStock;
 
@@ -26,10 +52,6 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
-      <Appbar.Header>
-       <Appbar.BackAction onPress={navigation.goBack} />
-        <Appbar.Content title={product.name} />
-      </Appbar.Header>
 
       <ScrollView
         contentContainerStyle={[
@@ -84,6 +106,12 @@ export default function ProductDetailScreen({ route, navigation }) {
             <Button mode="contained" disabled={outOfStock} onPress={handleAddToCart}>
               Add to cart
             </Button>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.push('ProductDetail', { productId: nextProduct.id })}
+            >
+              See next product
+            </Button>
           </View>
         </View>
       </ScrollView>
@@ -98,6 +126,12 @@ export default function ProductDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  notFound: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.background,
   },
   scrollContent: {
