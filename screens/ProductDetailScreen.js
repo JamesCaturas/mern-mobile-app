@@ -1,34 +1,50 @@
-import { useState, useLayoutEffect, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { View, Image, ScrollView, StyleSheet } from 'react-native';
+import {
+  Text,
+  Button,
+  Chip,
+  IconButton,
+  Snackbar,
+  ActivityIndicator,
+  useTheme,
+} from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { products } from '../data/products';
+import { fetchProduct } from '../services/products';
 import { useCart } from '../context/CartContext';
 import useScreenLog from '../hooks/useScreenLog';
-import { Text, Button, Chip, IconButton, Snackbar, useTheme } from 'react-native-paper';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
 import { formatPrice } from '../utils/format';
-import { colors, spacing, radius } from '../theme';
+import { colors, spacing } from '../theme';
 
-const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 10;
 
 export default function ProductDetailScreen({ route, navigation }) {
   useScreenLog();
   const { addItem } = useCart();
   const { productId } = route.params;
-  const index = products.findIndex((item) => item.id === productId);
-  const product = products[index];
-  const nextProduct = products[(index + 1) % products.length];
+  const [product, setProduct] = useState(null);
+
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useBreakpoint();
-  const [quantity, setQuantity] = useState(MIN_QUANTITY);
+  const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState('');
   const [favorite, setFavorite] = useState(false);
+
   useEffect(() => {
-    console.log('stack:', navigation.getState().routes.map((item) => item.name).join(' > '), '| product', productId);
+    let cancelled = false;
+    fetchProduct(productId)
+      .then((result) => {
+        if (!cancelled) setProduct(result);
+      })
+      .catch((error) => console.log('Could not load product:', error.message));
+    return () => {
+      cancelled = true;
+    };
   }, [productId]);
-    useLayoutEffect(() => {
+
+  useLayoutEffect(() => {
     navigation.setOptions({
       title: product ? product.name : 'Product',
       headerRight: () => (
@@ -40,13 +56,15 @@ export default function ProductDetailScreen({ route, navigation }) {
       ),
     });
   }, [navigation, product, favorite]);
+
   if (!product) {
     return (
-      <View style={styles.notFound}>
-        <Text variant="titleMedium">Product not found</Text>
+      <View style={styles.centered}>
+        <ActivityIndicator />
       </View>
     );
   }
+
   const isWide = width >= BREAKPOINTS.tablet;
   const outOfStock = !product.inStock;
 
@@ -57,7 +75,6 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
-
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -65,13 +82,10 @@ export default function ProductDetailScreen({ route, navigation }) {
         ]}
       >
         <View style={[styles.layout, isWide && styles.layoutWide]}>
-          <View style={isWide ? styles.imageWide : styles.imageNarrow}>
-            <Image
-              source={{ uri: product.imageUrl }}
-              style={styles.image}
-              accessibilityLabel={product.name}
-            />
-          </View>
+          <Image
+            source={{ uri: product.imageUrl }}
+            style={[styles.image, isWide && styles.imageWide]}
+          />
 
           <View style={styles.details}>
             <Text variant="headlineSmall">{product.name}</Text>
@@ -80,25 +94,23 @@ export default function ProductDetailScreen({ route, navigation }) {
             </Text>
 
             <View style={styles.chips}>
-              <Chip icon="tag-outline">{product.category}</Chip>
-              <Chip icon={outOfStock ? 'close' : 'check'}>
+              <Chip compact>{product.category}</Chip>
+              <Chip compact icon={outOfStock ? 'close' : 'check'}>
                 {outOfStock ? 'Out of stock' : 'In stock'}
               </Chip>
             </View>
 
             <Text variant="bodyLarge">{product.description}</Text>
 
-            <View style={styles.stepper}>
+            <View style={styles.quantityRow}>
               <IconButton
                 icon="minus"
                 mode="contained-tonal"
                 accessibilityLabel="Decrease quantity"
-                disabled={outOfStock || quantity <= MIN_QUANTITY}
+                disabled={outOfStock || quantity <= 1}
                 onPress={() => setQuantity((value) => value - 1)}
               />
-              <Text variant="titleMedium" style={styles.quantity}>
-                {quantity}
-              </Text>
+              <Text variant="titleMedium">{quantity}</Text>
               <IconButton
                 icon="plus"
                 mode="contained-tonal"
@@ -110,12 +122,6 @@ export default function ProductDetailScreen({ route, navigation }) {
 
             <Button mode="contained" disabled={outOfStock} onPress={handleAddToCart}>
               Add to cart
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.push('ProductDetail', { productId: nextProduct.id })}
-            >
-              See next product
             </Button>
           </View>
         </View>
@@ -133,11 +139,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  notFound: {
+  centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: spacing.lg,
@@ -151,19 +156,14 @@ const styles = StyleSheet.create({
   layoutWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.xl,
-  },
-  imageNarrow: {
-    width: '100%',
-  },
-  imageWide: {
-    width: '45%',
   },
   image: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: radius.md,
-    backgroundColor: colors.border,
+    borderRadius: 12,
+  },
+  imageWide: {
+    width: '45%',
   },
   details: {
     flex: 1,
@@ -171,16 +171,11 @@ const styles = StyleSheet.create({
   },
   chips: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  stepper: {
+  quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  quantity: {
-    minWidth: 32,
-    textAlign: 'center',
   },
 });
