@@ -4,7 +4,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DrawerActions } from '@react-navigation/native';
 import { Appbar, Searchbar, Chip, Snackbar } from 'react-native-paper';
 import { fetchProducts } from '../services/products';
-import { setAccessToken } from '../lib/tokenStore';
 import ProductCard from '../components/ProductCard';
 import DeviceInfo from '../components/DeviceInfo';
 import { useCart } from '../context/CartContext';
@@ -47,12 +46,6 @@ export default function ProductListScreen({ navigation }) {
     loadProducts();
   }, [loadProducts]);
 
-  // TEMPORARY (Module 6, Phase 4): simulate an expired access token.
-  const breakToken = () => {
-    setAccessToken('this.is.not-a-real-token');
-    console.log('[dev] Access token broken on purpose');
-  };
-
   const normalizedQuery = query.trim().toLowerCase();
   const visibleProducts = products.filter((product) => {
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
@@ -75,7 +68,6 @@ export default function ProductListScreen({ navigation }) {
       <Appbar.Header>
         <Appbar.Action icon="menu" accessibilityLabel="Open menu" onPress={toggleMenu} />
         <Appbar.Content title="Shopfront" />
-        <Appbar.Action icon="bug-outline" accessibilityLabel="Break token" onPress={breakToken} />
         <Appbar.Action icon="refresh" accessibilityLabel="Reload products" onPress={loadProducts} />
         <Appbar.Action
           icon="information-outline"
