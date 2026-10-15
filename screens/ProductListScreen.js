@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, ScrollView, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, FlatList, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DrawerActions } from '@react-navigation/native';
 import { Appbar, Searchbar, Chip, Snackbar } from 'react-native-paper';
-import { fetchProducts } from '../services/products';
 import ProductCard from '../components/ProductCard';
+import ErrorState from '../components/ErrorState';
+import OfflineBanner from '../components/OfflineBanner';
+import ProductListSkeleton from '../components/ProductListSkeleton';
 import DeviceInfo from '../components/DeviceInfo';
 import { useCart } from '../context/CartContext';
+import useProducts from '../hooks/useProducts';
 import { padToFullRows } from '../utils/grid';
 import useBreakpoint from '../hooks/useBreakpoint';
 import useScreenLog from '../hooks/useScreenLog';
@@ -29,22 +32,9 @@ export default function ProductListScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [message, setMessage] = useState('');
   const [showInfo, setShowInfo] = useState(false);
-  const [products, setProducts] = useState([]);
+  const { products, status, error, refreshing, reload, refresh } = useProducts();
 
   const categories = ['All', ...new Set(products.map((product) => product.category))];
-
-  const loadProducts = useCallback(async () => {
-    try {
-      const list = await fetchProducts();
-      setProducts(list);
-    } catch (error) {
-      console.log('Could not load products:', error.message);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleProducts = products.filter((product) => {
@@ -53,6 +43,21 @@ export default function ProductListScreen({ navigation }) {
     return matchesCategory && matchesQuery;
   });
   const gridData = padToFullRows(visibleProducts, numColumns);
+
+  // What the list shows when it has no rows: a skeleton, an error with a retry, or "no matches".
+  let emptyComponent = <EmptyList />;
+  if (status === 'loading') {
+    emptyComponent = <ProductListSkeleton numColumns={numColumns} />;
+  } else if (status === 'error') {
+    emptyComponent = <ErrorState message={error} onRetry={reload} />;
+  }
+
+  const handleRefresh = async () => {
+    const worked = await refresh();
+    if (!worked) {
+      setMessage('Could not refresh. Showing the products from earlier.');
+    }
+  };
 
   const toggleMenu = () => {
     navigation.dispatch(DrawerActions.toggleDrawer());
@@ -68,13 +73,14 @@ export default function ProductListScreen({ navigation }) {
       <Appbar.Header>
         <Appbar.Action icon="menu" accessibilityLabel="Open menu" onPress={toggleMenu} />
         <Appbar.Content title="Shopfront" />
-        <Appbar.Action icon="refresh" accessibilityLabel="Reload products" onPress={loadProducts} />
         <Appbar.Action
           icon="information-outline"
           accessibilityLabel="Device info"
           onPress={() => setShowInfo((value) => !value)}
         />
       </Appbar.Header>
+
+      <OfflineBanner />
 
       <SafeAreaView style={styles.body} edges={['left', 'right']}>
         <View style={styles.content}>
@@ -107,7 +113,9 @@ export default function ProductListScreen({ navigation }) {
               ))}
             </ScrollView>
 
-            <Text style={styles.resultsText}>{visibleProducts.length} products</Text>
+            {status === 'success' && (
+              <Text style={styles.resultsText}>{visibleProducts.length} products</Text>
+            )}
           </View>
 
           <FlatList
@@ -124,7 +132,14 @@ export default function ProductListScreen({ navigation }) {
             numColumns={numColumns}
             columnWrapperStyle={styles.columnWrapper}
             ItemSeparatorComponent={Separator}
-            ListEmptyComponent={EmptyList}
+            ListEmptyComponent={emptyComponent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+              />
+            }
             contentContainerStyle={[
               styles.listContent,
               { paddingBottom: insets.bottom + spacing.xl },
