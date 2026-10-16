@@ -15,6 +15,7 @@ export function mapProduct(raw) {
 }
 
 export async function fetchProducts() {
+  console.log('[products] fetching the list');
   const response = await api.get('/products');
   return response.data.data.map(mapProduct);
 }
