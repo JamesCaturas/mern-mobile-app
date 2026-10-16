@@ -1,9 +1,10 @@
+import { useSelector } from 'react-redux';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import ShopStack from './ShopStack';
 import CartScreen from '../screens/CartScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { useCart } from '../context/CartContext';
+import { selectCartCount } from '../store/cartSlice';
 import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
@@ -14,7 +15,7 @@ const tabIcon = (name) =>
   };
 
 export default function MainTabs() {
-  const { count } = useCart();
+  const count = useSelector(selectCartCount);
 
   return (
     <Tab.Navigator

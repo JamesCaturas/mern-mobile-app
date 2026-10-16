@@ -8,7 +8,8 @@ import ErrorState from '../components/ErrorState';
 import OfflineBanner from '../components/OfflineBanner';
 import ProductListSkeleton from '../components/ProductListSkeleton';
 import DeviceInfo from '../components/DeviceInfo';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addItem } from '../store/cartSlice';
 import useProducts from '../hooks/useProducts';
 import { padToFullRows } from '../utils/grid';
 import useBreakpoint from '../hooks/useBreakpoint';
@@ -25,7 +26,7 @@ function Separator() {
 
 export default function ProductListScreen({ navigation }) {
   useScreenLog();
-  const { addItem } = useCart();
+  const dispatch = useDispatch();
   const { numColumns } = useBreakpoint();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -64,7 +65,7 @@ export default function ProductListScreen({ navigation }) {
   };
 
   const handleAdd = (product) => {
-    addItem(product);
+    dispatch(addItem(product));
     setMessage(`${product.name} added to cart`);
   };
 

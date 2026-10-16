@@ -12,7 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorState from '../components/ErrorState';
 import ProductDetailSkeleton from '../components/ProductDetailSkeleton';
 import useProduct from '../hooks/useProduct';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addItem } from '../store/cartSlice';
 import useScreenLog from '../hooks/useScreenLog';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
 import { formatPrice } from '../utils/format';
@@ -22,7 +23,7 @@ const MAX_QUANTITY = 10;
 
 export default function ProductDetailScreen({ route, navigation }) {
   useScreenLog();
-  const { addItem } = useCart();
+  const dispatch = useDispatch();
   const { productId } = route.params;
   const { product, status, error, reload } = useProduct(productId);
 
@@ -58,7 +59,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const outOfStock = !product.inStock;
 
   const handleAddToCart = () => {
-    addItem(product, quantity);
+    dispatch(addItem(product, quantity));
     setMessage(`${quantity} x ${product.name} added to cart`);
   };
 
