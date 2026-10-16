@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import ShopStack from './ShopStack';
 import CartScreen from '../screens/CartScreen';
+import ShoppingListScreen from '../screens/ShoppingListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { selectCartCount } from '../store/cartSlice';
 import { colors } from '../theme';
@@ -28,6 +29,15 @@ export default function MainTabs() {
         name="Shop"
         component={ShopStack}
         options={{ headerShown: false, tabBarIcon: tabIcon('storefront-outline') }}
+      />
+      <Tab.Screen
+        name="List"
+        component={ShoppingListScreen}
+        options={{
+          title: 'Shopping list',
+          tabBarLabel: 'List',
+          tabBarIcon: tabIcon('format-list-checks'),
+        }}
       />
       <Tab.Screen
         name="Cart"
