@@ -8,9 +8,11 @@ import ErrorState from '../components/ErrorState';
 import OfflineBanner from '../components/OfflineBanner';
 import ProductListSkeleton from '../components/ProductListSkeleton';
 import DeviceInfo from '../components/DeviceInfo';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addItem } from '../store/cartSlice';
 import useProducts from '../hooks/useProducts';
 import { padToFullRows } from '../utils/grid';
+import { formatUpdated } from '../utils/format';
 import useBreakpoint from '../hooks/useBreakpoint';
 import useScreenLog from '../hooks/useScreenLog';
 import { colors, spacing } from '../theme';
@@ -25,14 +27,14 @@ function Separator() {
 
 export default function ProductListScreen({ navigation }) {
   useScreenLog();
-  const { addItem } = useCart();
+  const dispatch = useDispatch();
   const { numColumns } = useBreakpoint();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [message, setMessage] = useState('');
   const [showInfo, setShowInfo] = useState(false);
-  const { products, status, error, refreshing, reload, refresh } = useProducts();
+  const { products, status, error, refreshing, lastUpdated, reload, refresh } = useProducts();
 
   const categories = ['All', ...new Set(products.map((product) => product.category))];
 
@@ -64,7 +66,7 @@ export default function ProductListScreen({ navigation }) {
   };
 
   const handleAdd = (product) => {
-    addItem(product);
+    dispatch(addItem(product));
     setMessage(`${product.name} added to cart`);
   };
 
@@ -115,6 +117,11 @@ export default function ProductListScreen({ navigation }) {
 
             {status === 'success' && (
               <Text style={styles.resultsText}>{visibleProducts.length} products</Text>
+            )}
+            {status === 'error' && products.length > 0 && (
+              <Text style={styles.resultsText}>
+                Could not update. Showing products saved on {formatUpdated(lastUpdated)}.
+              </Text>
             )}
           </View>
 

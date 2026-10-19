@@ -1,22 +1,30 @@
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
+import { Provider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import RootNavigator from './navigation/RootNavigator';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
+import { PersistGate } from 'redux-persist/integration/react';
+import SplashScreen from './components/SplashScreen';
+import { persistor, store } from './store';
 import { paperTheme } from './theme';
 
 export default function App() {
   return (
-    <PaperProvider theme={paperTheme}>
-      <StatusBar style="dark" />
-      <ErrorBoundary>
-        <AuthProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </AuthProvider>
-      </ErrorBoundary>
-    </PaperProvider>
+    <Provider store={store}>
+      <PaperProvider theme={paperTheme}>
+        <StatusBar style="dark" />
+        <ErrorBoundary>
+          <PersistGate loading={<SplashScreen />} persistor={persistor}>
+            <AuthProvider>
+              <NavigationContainer>
+                <RootNavigator />
+              </NavigationContainer>
+            </AuthProvider>
+          </PersistGate>
+        </ErrorBoundary>
+      </PaperProvider>
+    </Provider>
   );
 }

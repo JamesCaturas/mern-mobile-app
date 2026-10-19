@@ -1,43 +1,39 @@
-import { useCallback, useEffect, useState } from 'react';
-import { fetchProducts } from '../services/products';
-import { getErrorMessage } from '../lib/errors';
-import { ensureOnline } from '../lib/network';
+import { useCallback, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  loadProducts,
+  refreshProducts,
+  selectProducts,
+  selectProductsError,
+  selectProductsRefreshing,
+  selectProductsStatus,
+  selectProductsUpdatedAt,
+} from '../store/productsSlice';
 import useOnReconnect from './useOnReconnect';
 
-// Loads the product list and reports which state it is in: 'loading', 'success' or 'error'.
+// Same return shape as before, but the data now lives in the Redux store, shared by every screen.
 export default function useProducts() {
-  const [products, setProducts] = useState([]);
-  const [status, setStatus] = useState('loading');
-  const [error, setError] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+  const dispatch = useDispatch();
+  const products = useSelector(selectProducts);
+  const storeStatus = useSelector(selectProductsStatus);
+  const error = useSelector(selectProductsError);
+  const refreshing = useSelector(selectProductsRefreshing);
+  const lastUpdated = useSelector(selectProductsUpdatedAt);
 
-  const reload = useCallback(async () => {
-    setStatus('loading');
-    setError('');
-    try {
-      await ensureOnline();
-      setProducts(await fetchProducts());
-      setStatus('success');
-    } catch (err) {
-      setError(getErrorMessage(err));
-      setStatus('error');
-    }
-  }, []);
+  // Before the first request starts the store says 'idle'. To the screen that is still "loading".
+  const status = storeStatus === 'idle' ? 'loading' : storeStatus;
 
-  // Pull-to-refresh: keep the products on screen and just report whether it worked.
+  const reload = useCallback(() => dispatch(loadProducts()), [dispatch]);
+
+  // Pull-to-refresh: .unwrap() turns a rejected thunk into a thrown error, so we can report true/false.
   const refresh = useCallback(async () => {
-    setRefreshing(true);
     try {
-      await ensureOnline();
-      setProducts(await fetchProducts());
-      setStatus('success');
+      await dispatch(refreshProducts()).unwrap();
       return true;
     } catch (err) {
       return false;
-    } finally {
-      setRefreshing(false);
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     reload();
@@ -46,5 +42,5 @@ export default function useProducts() {
   // When the connection comes back, quietly fetch fresh data.
   useOnReconnect(refresh);
 
-  return { products, status, error, refreshing, reload, refresh };
+  return { products, status, error, refreshing, lastUpdated, reload, refresh };
 }

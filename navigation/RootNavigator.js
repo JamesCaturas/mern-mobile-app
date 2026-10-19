@@ -1,7 +1,7 @@
 import RootDrawer from './RootDrawer';
 import AuthStack from './AuthStack';
 import SplashScreen from '../components/SplashScreen';
-import { CartProvider } from '../context/CartContext';
+import QueueRunner from '../components/QueueRunner';
 import { useAuth } from '../context/AuthContext';
 
 export default function RootNavigator() {
@@ -16,8 +16,9 @@ export default function RootNavigator() {
   }
 
   return (
-    <CartProvider>
+    <>
+      <QueueRunner />
       <RootDrawer />
-    </CartProvider>
+    </>
   );
 }

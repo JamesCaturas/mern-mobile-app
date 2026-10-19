@@ -1,5 +1,6 @@
 import { useState, useLayoutEffect } from 'react';
-import { View, Image, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import {
   Text,
   Button,
@@ -12,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorState from '../components/ErrorState';
 import ProductDetailSkeleton from '../components/ProductDetailSkeleton';
 import useProduct from '../hooks/useProduct';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addItem } from '../store/cartSlice';
 import useScreenLog from '../hooks/useScreenLog';
 import useElapsedSeconds from '../hooks/useElapsedSeconds';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
@@ -20,10 +22,11 @@ import { formatPrice } from '../utils/format';
 import { colors, spacing } from '../theme';
 
 const MAX_QUANTITY = 10;
+const BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function ProductDetailScreen({ route, navigation }) {
   useScreenLog();
-  const { addItem } = useCart();
+  const dispatch = useDispatch();
   const { productId } = route.params;
   const { product, status, error, reload } = useProduct(productId);
 
@@ -60,7 +63,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const outOfStock = !product.inStock;
 
   const handleAddToCart = () => {
-    addItem(product, quantity);
+    dispatch(addItem(product, quantity));
     setMessage(`${quantity} x ${product.name} added to cart`);
   };
 
@@ -76,6 +79,11 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Image
             source={{ uri: product.imageUrl }}
             style={[styles.image, isWide && styles.imageWide]}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            placeholder={{ blurhash: BLURHASH }}
+            accessibilityLabel={`${product.name} photo`}
           />
 
           <View style={styles.details}>
