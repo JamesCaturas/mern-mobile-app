@@ -1,73 +1,96 @@
-import { useState } from 'react';
-import { FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
-import {
-  ActivityIndicator,
-  Button,
-  Checkbox,
-  Divider,
-  IconButton,
-  List,
-  Snackbar,
-  Text,
-  TextInput,
-} from 'react-native-paper';
+import { useCallback, useState } from 'react';
+import { View, FlatList, Linking, RefreshControl, StyleSheet } from 'react-native';
+import { Button, Divider, Snackbar, Text, TextInput } from 'react-native-paper';
 import ErrorState from '../components/ErrorState';
+import ListSkeleton from '../components/ListSkeleton';
 import OfflineBanner from '../components/OfflineBanner';
-import useShoppingList from '../hooks/useShoppingList';
+import ShoppingRow from '../components/ShoppingRow';
 import useLocationTags from '../hooks/useLocationTags';
-import { formatCoords } from '../utils/format';
+import useShoppingList from '../hooks/useShoppingList';
 import { colors, spacing } from '../theme';
+
+const keyExtractor = (item) => item.id;
 
 export default function ShoppingListScreen() {
   const { items, status, error, refreshing, reload, refresh, add, toggle, remove } =
     useShoppingList();
   const { tags, tagItem, clearTag } = useLocationTags();
   const [name, setName] = useState('');
+  const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState('');
   const [needsSettings, setNeedsSettings] = useState(false);
 
-  // Shows a failure in the Snackbar. A failed tick or delete never keeps an old Settings button.
-  const report = (result) => {
-    setNeedsSettings(false);
-    if (!result.ok) {
-      setMessage(result.message);
-    }
-  };
-
   const handleAdd = async () => {
     const trimmed = name.trim();
-    if (trimmed === '') {
-      return;
-    }
+    if (trimmed === '') return;
+
+    setAdding(true);
     const result = await add(trimmed);
+    setAdding(false);
+
     if (result.ok) {
       setName('');
-    }
-    report(result);
-  };
-
-  const handleTag = async (item) => {
-    if (tags[item.id]) {
-      clearTag(item.id);
-      return;
-    }
-    const result = await tagItem(item.id);
-    if (!result.ok) {
-      setNeedsSettings(result.needsSettings);
+    } else {
       setMessage(result.message);
     }
   };
+
+  // Every handler below is wrapped in useCallback so ShoppingRow (which is memo'd) sees the same function each render.
+  // The state setters (setMessage, setNeedsSettings) never change identity, so they are safe dependencies.
+  const report = useCallback((result) => {
+    if (!result.ok) {
+      setNeedsSettings(false);
+      setMessage(result.message);
+    }
+  }, []);
+
+  const handleToggle = useCallback(async (item) => report(await toggle(item)), [toggle, report]);
+  const handleRemove = useCallback(async (item) => report(await remove(item)), [remove, report]);
+
+  // Tap once to tag the item with where you are now. Tap again to remove the tag.
+  // The row tells us whether it already has a tag, so this callback does not depend on `tags`.
+  const handleTag = useCallback(
+    async (item, hasTag) => {
+      if (hasTag) {
+        clearTag(item.id);
+        return;
+      }
+      const result = await tagItem(item.id);
+      if (!result.ok) {
+        setNeedsSettings(result.needsSettings);
+        setMessage(result.message);
+      }
+    },
+    [tagItem, clearTag]
+  );
+
+  // renderItem reads `tags`, so it gets a new identity only when a tag changes. Rows whose own tag is unchanged still skip.
+  const renderItem = useCallback(
+    ({ item }) => (
+      <ShoppingRow
+        item={item}
+        tag={tags[item.id]}
+        onToggle={handleToggle}
+        onTag={handleTag}
+        onRemove={handleRemove}
+      />
+    ),
+    [tags, handleToggle, handleTag, handleRemove]
+  );
 
   const handleRefresh = async () => {
     const worked = await refresh();
-    if (!worked) {
-      setMessage('Could not refresh. Showing your list from earlier.');
-    }
+    if (!worked) setMessage('Could not refresh. Showing your list from earlier.');
   };
 
-  let emptyComponent = <Text style={styles.empty}>Your list is empty. Add something above.</Text>;
+  let emptyComponent = (
+    <View style={styles.empty}>
+      <Text variant="titleMedium">Your list is empty</Text>
+      <Text style={styles.hint}>Add your first item above.</Text>
+    </View>
+  );
   if (status === 'loading') {
-    emptyComponent = <ActivityIndicator style={styles.spinner} />;
+    emptyComponent = <ListSkeleton />;
   } else if (status === 'error') {
     emptyComponent = <ErrorState message={error} onRetry={reload} />;
   }
@@ -75,63 +98,39 @@ export default function ShoppingListScreen() {
   return (
     <View style={styles.screen}>
       <OfflineBanner />
+
       <View style={styles.addRow}>
         <TextInput
           mode="outlined"
-          style={styles.input}
+          dense
+          label="Add an item"
+          accessibilityLabel="New item"
           value={name}
           onChangeText={setName}
-          placeholder="Add an item"
           onSubmitEditing={handleAdd}
           returnKeyType="done"
+          style={styles.input}
         />
-        <Button mode="contained" onPress={handleAdd}>
+        <Button
+          mode="contained"
+          onPress={handleAdd}
+          loading={adding}
+          disabled={adding || name.trim() === ''}
+        >
           Add
         </Button>
       </View>
 
       <FlatList
         data={items}
-        extraData={tags}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={emptyComponent}
+        extraData={tags}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
-        renderItem={({ item }) => {
-          const tag = tags[item.id];
-          return (
-            <List.Item
-              title={item.name}
-              titleStyle={item.done ? styles.done : undefined}
-              description={tag ? `Tagged at ${formatCoords(tag)}` : undefined}
-              left={() => (
-                <Checkbox
-                  status={item.done ? 'checked' : 'unchecked'}
-                  onPress={async () => report(await toggle(item))}
-                />
-              )}
-              right={() => (
-                <View style={styles.actions}>
-                  <IconButton
-                    icon={tag ? 'map-marker-check' : 'map-marker-plus-outline'}
-                    iconColor={tag ? colors.primary : colors.muted}
-                    accessibilityLabel={
-                      tag ? `Remove location tag from ${item.name}` : `Tag ${item.name} with my location`
-                    }
-                    onPress={() => handleTag(item)}
-                  />
-                  <IconButton
-                    icon="delete-outline"
-                    accessibilityLabel={`Remove ${item.name}`}
-                    onPress={async () => report(await remove(item))}
-                  />
-                </View>
-              )}
-            />
-          );
-        }}
+        renderItem={renderItem}
       />
 
       <Snackbar
@@ -160,20 +159,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
   },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  done: {
-    textDecorationLine: 'line-through',
-    color: colors.muted,
-  },
   empty: {
-    textAlign: 'center',
-    color: colors.muted,
-    marginTop: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
   },
-  spinner: {
-    marginTop: spacing.xl,
+  hint: {
+    color: colors.muted,
   },
 });
