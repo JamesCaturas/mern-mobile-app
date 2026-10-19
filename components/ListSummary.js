@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { burnCpu } from '../lib/burnCpu';
 import { renderLog } from '../lib/renderLog';
@@ -15,11 +16,15 @@ function summarise(items) {
   return `${done} of ${items.length} done`;
 }
 
-export default function ListSummary({ items }) {
+function ListSummary({ items }) {
   renderLog('ListSummary');
-  const text = summarise(items);
+  // Recompute only when the items change, not on every render.
+  const text = useMemo(() => summarise(items), [items]);
   return <Text style={styles.text}>{text}</Text>;
 }
+
+// memo: skip rendering entirely while the items are the same array as last time.
+export default memo(ListSummary);
 
 const styles = StyleSheet.create({
   text: {

@@ -14,6 +14,7 @@ import ProductDetailSkeleton from '../components/ProductDetailSkeleton';
 import useProduct from '../hooks/useProduct';
 import { useCart } from '../context/CartContext';
 import useScreenLog from '../hooks/useScreenLog';
+import useElapsedSeconds from '../hooks/useElapsedSeconds';
 import useBreakpoint, { BREAKPOINTS } from '../hooks/useBreakpoint';
 import { formatPrice } from '../utils/format';
 import { colors, spacing } from '../theme';
@@ -32,6 +33,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState('');
   const [favorite, setFavorite] = useState(false);
+  const secondsOpen = useElapsedSeconds();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -89,7 +91,10 @@ export default function ProductDetailScreen({ route, navigation }) {
               </Chip>
             </View>
 
-            <Text variant="bodyLarge">{product.description}</Text>
+                        <Text variant="bodyLarge">{product.description}</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.outline }}>
+              You have been looking at this for {secondsOpen}s
+            </Text>
 
             <View style={styles.quantityRow}>
               <IconButton
